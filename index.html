@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14161a">
+<meta name="description" content="A fast, installable unit converter: length, volume, weight, currency, fuel economy and more.">
+<title>Converter</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Converter">
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --panel-2:#eef0f4; --line:#dcdfe6;
+    --text:#14161a; --muted:#6a7280; --accent:#2f6fed; --accent-soft:#e6eefd;
+    --shadow:0 1px 2px rgba(20,22,26,.06), 0 6px 18px rgba(20,22,26,.06);
+    --r:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#14161a; --panel:#1c1f25; --panel-2:#23272f; --line:#2e333c;
+      --text:#eceef2; --muted:#98a0ad; --accent:#6f9bff; --accent-soft:#1f2a40;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 22px rgba(0,0,0,.28);
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:0 14px 40px}
+
+  header{
+    position:sticky;top:0;z-index:20;background:var(--bg);
+    padding:14px 0 10px;display:flex;align-items:center;gap:10px;
+  }
+  header h1{font-size:20px;line-height:1.2;margin:0;font-weight:650;letter-spacing:-.01em;flex:1}
+  header .sub{display:block;font-size:12px;font-weight:450;color:var(--muted);margin-top:2px}
+  .iconbtn{
+    border:1px solid var(--line);background:var(--panel);color:var(--text);
+    width:40px;height:40px;border-radius:12px;font-size:19px;line-height:1;
+    display:grid;place-items:center;cursor:pointer;flex:none;
+  }
+  .iconbtn:active{background:var(--panel-2)}
+
+  /* ---- category grid ---- */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media (min-width:560px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .cat{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+    padding:13px;text-align:left;cursor:pointer;color:inherit;font:inherit;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:104px;
+  }
+  .cat:active{transform:scale(.985)}
+  .cat .ico{font-size:22px;line-height:1;display:block;margin-bottom:auto;padding-bottom:8px}
+  .cat .nm{display:block;font-weight:600;font-size:15px;line-height:1.25}
+  .cat .ds{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .sectionlabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:22px 2px 10px;font-weight:600}
+
+  /* ---- converter ---- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+  .inputrow{padding:14px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .inputrow input{
+    flex:1;min-width:0;border:0;background:transparent;color:var(--text);
+    font-size:30px;font-weight:600;letter-spacing:-.02em;padding:4px 0;outline:none;
+    font-variant-numeric:tabular-nums;
+  }
+  select{
+    border:1px solid var(--line);background:var(--panel);color:var(--text);
+    border-radius:11px;padding:10px 9px;font-size:15px;max-width:48%;font-family:inherit;
+  }
+  .rows{max-height:none}
+  .row{
+    display:flex;align-items:baseline;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);
+    cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;color:inherit;font:inherit;
+  }
+  .row:last-child{border-bottom:0}
+  .row:active{background:var(--panel-2)}
+  .row .val{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;flex:1;min-width:0;overflow-wrap:anywhere}
+  .row .un{font-size:13px;color:var(--muted);text-align:right;flex:none;max-width:52%}
+  .row .un b{display:block;color:var(--text);font-size:14px;font-weight:600}
+
+  .note{font-size:12.5px;color:var(--muted);margin:12px 4px 0;line-height:1.5}
+  .note a{color:var(--accent)}
+
+  /* ---- tables ---- */
+  .tablecard{margin-top:16px}
+  .tablecard h3{margin:0;padding:13px 14px;font-size:14px;border-bottom:1px solid var(--line);background:var(--panel-2);font-weight:650}
+  table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+  th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  tr:last-child td{border-bottom:0}
+
+  /* ---- finance ---- */
+  .tool{margin-bottom:14px}
+  .tool h3{margin:0;padding:13px 14px;font-size:14px;border-bottom:1px solid var(--line);background:var(--panel-2);font-weight:650}
+  .fields{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fields .full{grid-column:1/-1}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .fields input, .fields select{
+    width:100%;border:1px solid var(--line);background:var(--bg);color:var(--text);
+    border-radius:10px;padding:10px;font-size:16px;font-family:inherit;max-width:none;
+    font-variant-numeric:tabular-nums;
+  }
+  .fields input:focus, .fields select:focus, select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .out{
+    margin:0;padding:12px 14px;border-top:1px solid var(--line);background:var(--accent-soft);
+    font-size:15px;line-height:1.55;
+  }
+  .out b{font-size:17px;font-variant-numeric:tabular-nums}
+
+  .pill{
+    display:inline-block;font-size:11.5px;color:var(--muted);border:1px solid var(--line);
+    border-radius:999px;padding:3px 9px;margin:0 0 10px
+  }
+  .hidden{display:none !important}
+  .refresh{font:inherit;font-size:12.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="iconbtn hidden" id="back" aria-label="Back">‹</button>
+    <h1 id="title">Converter<span class="sub" id="subtitle">Tap a category</span></h1>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   Unit definitions.
+   Each unit: { id, name, sym, f }  where f = how many base units in 1 of this.
+   Non-linear categories supply to()/from() instead.
+   ========================================================================= */
+
+const CATS = {
+  length: {
+    name:"Length", icon:"📏", desc:"mm → miles", group:"Everyday",
+    units:[
+      {id:"mm", name:"Millimetres", sym:"mm", f:0.001},
+      {id:"cm", name:"Centimetres", sym:"cm", f:0.01},
+      {id:"m",  name:"Metres", sym:"m", f:1},
+      {id:"km", name:"Kilometres", sym:"km", f:1000},
+      {id:"in", name:"Inches", sym:"in", f:0.0254},
+      {id:"ft", name:"Feet", sym:"ft", f:0.3048},
+      {id:"yd", name:"Yards", sym:"yd", f:0.9144},
+      {id:"mi", name:"Miles", sym:"mi", f:1609.344},
+      {id:"nmi",name:"Nautical miles", sym:"nmi", f:1852}
+    ], def:"m"
+  },
+  area: {
+    name:"Area", icon:"▦", desc:"m² · ft² · acres", group:"Everyday",
+    units:[
+      {id:"cm2", name:"Square centimetres", sym:"cm²", f:0.0001},
+      {id:"m2",  name:"Square metres", sym:"m²", f:1},
+      {id:"km2", name:"Square kilometres", sym:"km²", f:1e6},
+      {id:"ft2", name:"Square feet", sym:"ft²", f:0.09290304},
+      {id:"yd2", name:"Square yards", sym:"yd²", f:0.83612736},
+      {id:"ha",  name:"Hectares", sym:"ha", f:10000},
+      {id:"ac",  name:"Acres", sym:"acre", f:4046.8564224},
+      {id:"mi2", name:"Square miles", sym:"mi²", f:2589988.110336}
+    ], def:"m2"
+  },
+  volume: {
+    name:"Volume", icon:"🧊", desc:"litres · gallons", group:"Everyday",
+    units:[
+      {id:"ml",   name:"Millilitres", sym:"ml", f:0.001},
+      {id:"l",    name:"Litres", sym:"L", f:1},
+      {id:"m3",   name:"Cubic metres", sym:"m³", f:1000},
+      {id:"flozuk",name:"Fluid ounces (UK)", sym:"fl oz UK", f:0.0284130625},
+      {id:"flozus",name:"Fluid ounces (US)", sym:"fl oz US", f:0.0295735295625},
+      {id:"ptuk", name:"Pints (UK)", sym:"pt UK", f:0.56826125},
+      {id:"ptus", name:"Pints (US)", sym:"pt US", f:0.473176473},
+      {id:"galuk",name:"Gallons (UK)", sym:"gal UK", f:4.54609},
+      {id:"galus",name:"Gallons (US)", sym:"gal US", f:3.785411784}
+    ], def:"l"
+  },
+  weight: {
+    name:"Weight", icon:"⚖️", desc:"kg · lb · stone", group:"Everyday",
+    units:[
+      {id:"g",  name:"Grams", sym:"g", f:0.001},
+      {id:"kg", name:"Kilograms", sym:"kg", f:1},
+      {id:"t",  name:"Tonnes (metric)", sym:"t", f:1000},
+      {id:"oz", name:"Ounces", sym:"oz", f:0.028349523125},
+      {id:"lb", name:"Pounds", sym:"lb", f:0.45359237},
+      {id:"st", name:"Stone", sym:"st", f:6.35029318},
+      {id:"cwt",name:"Hundredweight (UK)", sym:"cwt", f:50.80234544},
+      {id:"tonuk",name:"Tons (imperial)", sym:"ton", f:1016.0469088}
+    ], def:"kg"
+  },
+  temperature: {
+    name:"Temperature", icon:"🌡️", desc:"°C · °F · K", group:"Everyday",
+    nonlinear:true,
+    units:[
+      {id:"c", name:"Celsius", sym:"°C", to:v=>v,               from:v=>v},
+      {id:"f", name:"Fahrenheit", sym:"°F", to:v=>(v-32)*5/9,   from:v=>v*9/5+32},
+      {id:"k", name:"Kelvin", sym:"K", to:v=>v-273.15,          from:v=>v+273.15}
+    ], def:"c"
+  },
+  pressure: {
+    name:"Pressure", icon:"🎈", desc:"bar · psi", group:"Everyday",
+    units:[
+      {id:"pa",  name:"Pascals", sym:"Pa", f:1},
+      {id:"kpa", name:"Kilopascals", sym:"kPa", f:1000},
+      {id:"bar", name:"Bar", sym:"bar", f:100000},
+      {id:"psi", name:"Pounds per sq inch", sym:"psi", f:6894.757293168},
+      {id:"atm", name:"Atmospheres", sym:"atm", f:101325},
+      {id:"mmhg",name:"Millimetres of mercury", sym:"mmHg", f:133.322387415},
+      {id:"inhg",name:"Inches of mercury", sym:"inHg", f:3386.388640341},
+      {id:"mbar",name:"Millibars", sym:"mbar", f:100}
+    ], def:"bar"
+  },
+  speed: {
+    name:"Speed", icon:"🚗", desc:"mph · km/h · knots", group:"Everyday",
+    units:[
+      {id:"kmh", name:"Kilometres per hour", sym:"km/h", f:1/3.6},
+      {id:"mph", name:"Miles per hour", sym:"mph", f:0.44704},
+      {id:"ms",  name:"Metres per second", sym:"m/s", f:1},
+      {id:"kn",  name:"Knots", sym:"kn", f:0.514444444444},
+      {id:"fts", name:"Feet per second", sym:"ft/s", f:0.3048}
+    ], def:"mph"
+  },
+  fuel: {
+    name:"Fuel economy", icon:"⛽", desc:"mpg ↔ L/100km", group:"Everyday",
+    nonlinear:true,
+    // base = litres per 100 km
+    units:[
+      {id:"l100", name:"Litres per 100 km", sym:"L/100km", to:v=>v, from:v=>v},
+      {id:"mpguk",name:"Miles per gallon (UK)", sym:"mpg UK", to:v=>282.4809363/v, from:v=>282.4809363/v},
+      {id:"mpgus",name:"Miles per gallon (US)", sym:"mpg US", to:v=>235.2145833/v, from:v=>235.2145833/v},
+      {id:"kml",  name:"Kilometres per litre", sym:"km/L", to:v=>100/v, from:v=>100/v},
+      {id:"mpl",  name:"Miles per litre", sym:"mi/L", to:v=>62.13711922/v, from:v=>62.13711922/v}
+    ], def:"mpguk"
+  },
+  time: {
+    name:"Time", icon:"⏱️", desc:"seconds → years", group:"Everyday",
+    units:[
+      {id:"ms", name:"Milliseconds", sym:"ms", f:0.001},
+      {id:"s",  name:"Seconds", sym:"s", f:1},
+      {id:"min",name:"Minutes", sym:"min", f:60},
+      {id:"h",  name:"Hours", sym:"h", f:3600},
+      {id:"d",  name:"Days", sym:"d", f:86400},
+      {id:"wk", name:"Weeks", sym:"wk", f:604800},
+      {id:"mo", name:"Months (avg)", sym:"mo", f:2629746},
+      {id:"yr", name:"Years (365.25 d)", sym:"yr", f:31557600}
+    ], def:"h"
+  },
+  energy: {
+    name:"Energy", icon:"⚡", desc:"kWh · kcal · BTU", group:"Everyday",
+    units:[
+      {id:"j",   name:"Joules", sym:"J", f:1},
+      {id:"kj",  name:"Kilojoules", sym:"kJ", f:1000},
+      {id:"cal", name:"Calories (small)", sym:"cal", f:4.184},
+      {id:"kcal",name:"Kilocalories (food)", sym:"kcal", f:4184},
+      {id:"wh",  name:"Watt hours", sym:"Wh", f:3600},
+      {id:"kwh", name:"Kilowatt hours", sym:"kWh", f:3600000},
+      {id:"btu", name:"British thermal units", sym:"BTU", f:1055.05585262},
+      {id:"therm",name:"Therms (UK gas)", sym:"thm", f:105505585.257348}
+    ], def:"kwh"
+  },
+  data: {
+    name:"Data", icon:"💾", desc:"MB · GB · GiB", group:"Everyday",
+    units:[
+      {id:"b",  name:"Bytes", sym:"B", f:1},
+      {id:"kb", name:"Kilobytes (1000)", sym:"kB", f:1e3},
+      {id:"mb", name:"Megabytes (1000)", sym:"MB", f:1e6},
+      {id:"gb", name:"Gigabytes (1000)", sym:"GB", f:1e9},
+      {id:"tb", name:"Terabytes (1000)", sym:"TB", f:1e12},
+      {id:"kib",name:"Kibibytes (1024)", sym:"KiB", f:1024},
+      {id:"mib",name:"Mebibytes (1024)", sym:"MiB", f:1048576},
+      {id:"gib",name:"Gibibytes (1024)", sym:"GiB", f:1073741824}
+    ], def:"gb"
+  },
+  cooking: {
+    name:"Cooking", icon:"🥄", desc:"spoons · cups · oven", group:"Everyday",
+    units:[
+      {id:"ml",    name:"Millilitres", sym:"ml", f:1},
+      {id:"tsp",   name:"Teaspoons (5 ml)", sym:"tsp", f:5},
+      {id:"tbsp",  name:"Tablespoons (15 ml)", sym:"tbsp", f:15},
+      {id:"cupus", name:"Cups (US, 240 ml)", sym:"cup US", f:240},
+      {id:"cupmet",name:"Cups (metric, 250 ml)", sym:"cup", f:250},
+      {id:"flozuk",name:"Fluid ounces (UK)", sym:"fl oz UK", f:28.4130625},
+      {id:"ptuk",  name:"Pints (UK)", sym:"pt UK", f:568.26125},
+      {id:"l",     name:"Litres", sym:"L", f:1000}
+    ], def:"ml", extra:"oven"
+  },
+  sizes: {
+    name:"Clothing sizes", icon:"👟", desc:"UK · EU · US", group:"Everyday",
+    custom:"sizes"
+  },
+  currency: {
+    name:"Currency", icon:"💱", desc:"live ECB rates", group:"Money",
+    custom:"currency"
+  },
+  finance: {
+    name:"Money tools", icon:"🧮", desc:"% · growth · VAT · tip", group:"Money",
+    custom:"finance"
+  }
+};
+
+/* ---------- number formatting ---------- */
+function fmt(n, sig){
+  if(n===null || n===undefined || !isFinite(n)) return "–";
+  if(n===0) return "0";
+  const a = Math.abs(n);
+  if(a >= 1e13 || a < 1e-6) return n.toExponential(4).replace("e","e");
+  sig = sig || 8;
+  let s = Number(n.toPrecision(sig));
+  // limit decimals sensibly
+  let dec;
+  if(Math.abs(s) >= 1000) dec = 2;
+  else if(Math.abs(s) >= 1) dec = 4;
+  else dec = 6;
+  s = Number(s.toFixed(dec));
+  let [int, frac] = String(s).split(".");
+  int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return frac ? int + "." + frac : int;
+}
+function fmtMoney(n){
+  if(!isFinite(n)) return "–";
+  return n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function parseNum(s){
+  if(typeof s !== "string") return NaN;
+  s = s.trim().replace(/[\s,]/g,"");
+  if(s === "" || s === "-" ) return NaN;
+  return Number(s);
+}
+
+/* ---------- linear / non-linear conversion ---------- */
+function toBase(cat, unit, v){ return cat.nonlinear ? unit.to(v) : v * unit.f; }
+function fromBase(cat, unit, b){ return cat.nonlinear ? unit.from(b) : b / unit.f; }
+
+/* =========================================================================
+   Router
+   ========================================================================= */
+const view = document.getElementById("view");
+const titleEl = document.getElementById("title");
+const subEl = document.getElementById("subtitle");
+const backBtn = document.getElementById("back");
+
+backBtn.addEventListener("click", () => { location.hash = ""; });
+window.addEventListener("hashchange", route);
+
+function route(){
+  const key = decodeURIComponent(location.hash.replace(/^#/,""));
+  if(CATS[key]) renderCategory(key);
+  else renderHome();
+  window.scrollTo(0,0);
+}
+
+function setHeader(title, sub, showBack){
+  titleEl.childNodes[0].nodeValue = title;
+  subEl.textContent = sub;
+  backBtn.classList.toggle("hidden", !showBack);
+}
+
+/* ---------- home ---------- */
+function renderHome(){
+  setHeader("Converter", "Tap a category", false);
+  const groups = {};
+  for(const [k,c] of Object.entries(CATS)){ (groups[c.group] ||= []).push([k,c]); }
+  let html = "";
+  for(const [g, items] of Object.entries(groups)){
+    html += `<div class="sectionlabel">${g}</div><div class="grid">`;
+    for(const [k,c] of items){
+      html += `<button class="cat" data-k="${k}">
+        <span class="ico">${c.icon}</span>
+        <span class="nm">${c.name}</span>
+        <span class="ds">${c.desc}</span>
+      </button>`;
+    }
+    html += `</div>`;
+  }
+  html += `<p class="note">Rates and tables are for general guidance — check anything that really matters.</p>`;
+  view.innerHTML = html;
+  view.querySelectorAll(".cat").forEach(b=>{
+    b.addEventListener("click", ()=>{ location.hash = b.dataset.k; });
+  });
+}
+
+/* ---------- category dispatch ---------- */
+function renderCategory(key){
+  const cat = CATS[key];
+  setHeader(cat.name, cat.desc, true);
+  if(cat.custom === "currency") return renderCurrency();
+  if(cat.custom === "finance")  return renderFinance();
+  if(cat.custom === "sizes")    return renderSizes();
+  renderConverter(key, cat);
+}
+
+/* =========================================================================
+   Standard converter
+   ========================================================================= */
+const lastUnit = {};
+try{ Object.assign(lastUnit, JSON.parse(localStorage.getItem("conv.lastUnit")||"{}")); }catch(e){}
+
+function renderConverter(key, cat){
+  const start = (lastUnit[key] && cat.units.some(u=>u.id===lastUnit[key])) ? lastUnit[key] : cat.def;
+  view.innerHTML = `
+    <div class="card">
+      <div class="inputrow">
+        <input id="amt" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Amount">
+        <select id="unit" aria-label="Unit">
+          ${cat.units.map(u=>`<option value="${u.id}"${u.id===start?" selected":""}>${u.name}</option>`).join("")}
+        </select>
+      </div>
+      <div class="rows" id="rows"></div>
+    </div>
+    ${cat.extra === "oven" ? ovenTable() : ""}
+    <p class="note">Tap any row to switch the calculation to that unit.</p>
+  `;
+  const amt = document.getElementById("amt");
+  const unitSel = document.getElementById("unit");
+  const rows = document.getElementById("rows");
+
+  function update(){
+    const v = parseNum(amt.value);
+    const u = cat.units.find(x=>x.id===unitSel.value);
+    lastUnit[key] = u.id;
+    try{ localStorage.setItem("conv.lastUnit", JSON.stringify(lastUnit)); }catch(e){}
+    const base = isNaN(v) ? NaN : toBase(cat, u, v);
+    rows.innerHTML = cat.units.filter(x=>x.id!==u.id).map(x=>{
+      const out = isNaN(base) ? NaN : fromBase(cat, x, base);
+      return `<button class="row" data-u="${x.id}" data-v="${isFinite(out)?out:""}">
+        <span class="val">${fmt(out)}</span>
+        <span class="un"><b>${x.sym}</b>${x.name}</span>
+      </button>`;
+    }).join("");
+    rows.querySelectorAll(".row").forEach(r=>{
+      r.addEventListener("click", ()=>{
+        if(r.dataset.v === "") return;
+        unitSel.value = r.dataset.u;
+        amt.value = fmt(Number(r.dataset.v)).replace(/,/g,"");
+        update();
+      });
+    });
+  }
+  amt.addEventListener("input", update);
+  unitSel.addEventListener("change", update);
+  update();
+  amt.focus({preventScroll:true});
+  amt.select();
+}
+
+function ovenTable(){
+  const rows = [
+    ["110","90","225","¼"],["120","100","250","½"],["140","120","275","1"],
+    ["150","130","300","2"],["160","140","325","3"],["180","160","350","4"],
+    ["190","170","375","5"],["200","180","400","6"],["220","200","425","7"],
+    ["230","210","450","8"],["240","220","475","9"]
+  ];
+  return `<div class="card tablecard"><h3>Oven temperatures</h3>
+    <table><thead><tr><th>°C</th><th>Fan °C</th><th>°F</th><th>Gas</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("")}</tbody>
+    </table></div>`;
+}
+
+/* =========================================================================
+   Currency — live ECB rates via Frankfurter
+   ========================================================================= */
+const CURRENCIES = [
+  ["GBP","British pound","£"], ["EUR","Euro","€"], ["USD","US dollar","$"],
+  ["AUD","Australian dollar","A$"], ["JPY","Japanese yen","¥"],
+  ["CHF","Swiss franc","CHF"], ["CAD","Canadian dollar","C$"],
+  ["SEK","Swedish krona","kr"], ["NOK","Norwegian krone","kr"],
+  ["NZD","New Zealand dollar","NZ$"], ["PLN","Polish złoty","zł"],
+  ["CZK","Czech koruna","Kč"], ["ZAR","South African rand","R"],
+  ["INR","Indian rupee","₹"], ["CNY","Chinese yuan","¥"]
+];
+const FX_HOSTS = ["https://api.frankfurter.dev/v1", "https://api.frankfurter.app"];
+let fx = null; // {date, rates:{CUR:perEUR}, fetched}
+
+function loadFxCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem("conv.fx")||"null");
+    if(c && c.rates && c.rates.GBP) fx = c;
+  }catch(e){}
+}
+async function fetchFx(){
+  const syms = CURRENCIES.map(c=>c[0]).filter(c=>c!=="EUR").join(",");
+  for(const host of FX_HOSTS){
+    try{
+      const r = await fetch(`${host}/latest?base=EUR&symbols=${syms}`, {cache:"no-store"});
+      if(!r.ok) continue;
+      const j = await r.json();
+      if(!j.rates) continue;
+      fx = { date:j.date, rates:Object.assign({EUR:1}, j.rates), fetched:Date.now() };
+      try{ localStorage.setItem("conv.fx", JSON.stringify(fx)); }catch(e){}
+      return true;
+    }catch(e){ /* try next host */ }
+  }
+  return false;
+}
+
+function renderCurrency(){
+  loadFxCache();
+  const start = lastUnit.currency || "GBP";
+  view.innerHTML = `
+    <div class="card">
+      <div class="inputrow">
+        <input id="amt" type="text" inputmode="decimal" autocomplete="off" value="100" aria-label="Amount">
+        <select id="unit" aria-label="Currency">
+          ${CURRENCIES.map(c=>`<option value="${c[0]}"${c[0]===start?" selected":""}>${c[0]} — ${c[1]}</option>`).join("")}
+        </select>
+      </div>
+      <div class="rows" id="rows"></div>
+    </div>
+    <p class="note" id="fxnote">Loading rates…</p>
+  `;
+  const amt = document.getElementById("amt");
+  const unitSel = document.getElementById("unit");
+  const rows = document.getElementById("rows");
+  const note = document.getElementById("fxnote");
+
+  function update(){
+    const v = parseNum(amt.value);
+    const from = unitSel.value;
+    lastUnit.currency = from;
+    try{ localStorage.setItem("conv.lastUnit", JSON.stringify(lastUnit)); }catch(e){}
+    if(!fx){
+      rows.innerHTML = `<div class="row" style="cursor:default"><span class="val" style="font-size:15px;font-weight:400;color:var(--muted)">No rates yet — connect to the internet once and they'll be saved for later.</span></div>`;
+      return;
+    }
+    const eur = isNaN(v) ? NaN : v / fx.rates[from];
+    rows.innerHTML = CURRENCIES.filter(c=>c[0]!==from && fx.rates[c[0]]).map(c=>{
+      const out = isNaN(eur) ? NaN : eur * fx.rates[c[0]];
+      const rate = fx.rates[c[0]] / fx.rates[from];
+      return `<button class="row" data-u="${c[0]}" data-v="${isFinite(out)?out:""}">
+        <span class="val">${c[2]}${isFinite(out)?fmtMoney(out):"–"}</span>
+        <span class="un"><b>${c[0]}</b>1 ${from} = ${fmt(rate,6)}</span>
+      </button>`;
+    }).join("");
+    rows.querySelectorAll(".row").forEach(r=>{
+      r.addEventListener("click", ()=>{
+        if(!r.dataset.v) return;
+        unitSel.value = r.dataset.u;
+        amt.value = Number(r.dataset.v).toFixed(2);
+        update();
+      });
+    });
+  }
+
+  function showNote(ok){
+    if(!fx){
+      note.innerHTML = `Couldn't reach the rates service. <button class="refresh" id="rf">Try again</button>`;
+    } else {
+      const age = fx.fetched ? new Date(fx.fetched).toLocaleString() : "";
+      note.innerHTML = `European Central Bank reference rates for <b>${fx.date}</b>${ok?"":" (saved copy)"} · fetched ${age}. Published once each working day around 16:00 CET — a bank or card will give you a worse rate. <button class="refresh" id="rf">Refresh</button>`;
+    }
+    const rf = document.getElementById("rf");
+    if(rf) rf.addEventListener("click", async ()=>{
+      rf.textContent = "…";
+      const ok2 = await fetchFx();
+      update(); showNote(ok2);
+    });
+  }
+
+  amt.addEventListener("input", update);
+  unitSel.addEventListener("change", update);
+  update();
+  if(fx) showNote(false);
+  fetchFx().then(ok=>{ if(ok) update(); showNote(ok); });
+}
+
+/* =========================================================================
+   Money tools
+   ========================================================================= */
+function renderFinance(){
+  view.innerHTML = `
+  <div class="card tool">
+    <h3>Percentage change</h3>
+    <div class="fields">
+      <div><label for="p1">From</label><input id="p1" type="text" inputmode="decimal" value="100"></div>
+      <div><label for="p2">To</label><input id="p2" type="text" inputmode="decimal" value="125"></div>
+    </div>
+    <p class="out" id="pout"></p>
+  </div>
+
+  <div class="card tool">
+    <h3>Compound growth</h3>
+    <div class="fields">
+      <div><label for="c1">Starting amount</label><input id="c1" type="text" inputmode="decimal" value="10000"></div>
+      <div><label for="c2">Return % a year</label><input id="c2" type="text" inputmode="decimal" value="5"></div>
+      <div><label for="c3">Years</label><input id="c3" type="text" inputmode="decimal" value="10"></div>
+      <div><label for="c4">Added each year</label><input id="c4" type="text" inputmode="decimal" value="0"></div>
+    </div>
+    <p class="out" id="cout"></p>
+  </div>
+
+  <div class="card tool">
+    <h3>VAT / IVA</h3>
+    <div class="fields">
+      <div><label for="v1">Amount</label><input id="v1" type="text" inputmode="decimal" value="100"></div>
+      <div><label for="v2">Rate</label>
+        <select id="v2">
+          <option value="20">UK standard 20%</option>
+          <option value="5">UK reduced 5%</option>
+          <option value="21">Spain IVA 21%</option>
+          <option value="10">Spain reducido 10%</option>
+          <option value="4">Spain superreducido 4%</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="full hidden" id="v3wrap"><label for="v3">Custom rate %</label><input id="v3" type="text" inputmode="decimal" value="20"></div>
+    </div>
+    <p class="out" id="vout"></p>
+  </div>
+
+  <div class="card tool">
+    <h3>Tip &amp; split</h3>
+    <div class="fields">
+      <div><label for="t1">Bill</label><input id="t1" type="text" inputmode="decimal" value="60"></div>
+      <div><label for="t2">Tip %</label><input id="t2" type="text" inputmode="decimal" value="10"></div>
+      <div><label for="t3">People</label><input id="t3" type="text" inputmode="numeric" value="2"></div>
+    </div>
+    <p class="out" id="tout"></p>
+  </div>
+  <p class="note">Compound growth is before inflation, charges and tax — it assumes a steady return, which no real fund delivers.</p>
+  `;
+
+  const $ = id => document.getElementById(id);
+  const bind = (ids, fn) => { ids.forEach(i => $(i).addEventListener("input", fn)); fn(); };
+
+  bind(["p1","p2"], ()=>{
+    const a = parseNum($("p1").value), b = parseNum($("p2").value);
+    if(!isFinite(a)||!isFinite(b)||a===0){ $("pout").textContent = "Enter two numbers."; return; }
+    const pc = (b-a)/Math.abs(a)*100;
+    const mult = a!==0 ? b/a : NaN;
+    $("pout").innerHTML = `<b>${pc>=0?"+":""}${fmt(pc,5)}%</b> — a change of ${fmtMoney(b-a)}, or ×${fmt(mult,5)}.`;
+  });
+
+  bind(["c1","c2","c3","c4"], ()=>{
+    const P = parseNum($("c1").value), r = parseNum($("c2").value)/100,
+          n = parseNum($("c3").value), add = parseNum($("c4").value)||0;
+    if(!isFinite(P)||!isFinite(r)||!isFinite(n)){ $("cout").textContent = "Fill in the first three boxes."; return; }
+    const growth = Math.pow(1+r, n);
+    const fvAdd = r === 0 ? add*n : add*(growth-1)/r;
+    const fv = P*growth + fvAdd;
+    const paid = P + add*n;
+    $("cout").innerHTML = `<b>${fmtMoney(fv)}</b> after ${fmt(n,4)} years.<br>Put in ${fmtMoney(paid)} · growth ${fmtMoney(fv-paid)}.`;
+  });
+
+  const vsel = $("v2");
+  const vupd = ()=>{
+    $("v3wrap").classList.toggle("hidden", vsel.value !== "custom");
+    const amt = parseNum($("v1").value);
+    const rate = (vsel.value === "custom" ? parseNum($("v3").value) : Number(vsel.value))/100;
+    if(!isFinite(amt)||!isFinite(rate)){ $("vout").textContent = "Enter an amount."; return; }
+    $("vout").innerHTML =
+      `If ${fmtMoney(amt)} is <b>net</b>: VAT ${fmtMoney(amt*rate)}, gross <b>${fmtMoney(amt*(1+rate))}</b>.<br>`+
+      `If ${fmtMoney(amt)} is <b>gross</b>: VAT ${fmtMoney(amt - amt/(1+rate))}, net <b>${fmtMoney(amt/(1+rate))}</b>.`;
+  };
+  ["v1","v3"].forEach(i=>$(i).addEventListener("input", vupd));
+  vsel.addEventListener("change", vupd); vupd();
+
+  bind(["t1","t2","t3"], ()=>{
+    const bill = parseNum($("t1").value), tip = parseNum($("t2").value)/100, ppl = parseNum($("t3").value);
+    if(!isFinite(bill)||!isFinite(tip)){ $("tout").textContent = "Enter a bill amount."; return; }
+    const total = bill*(1+tip);
+    const each = (isFinite(ppl) && ppl>0) ? total/ppl : NaN;
+    $("tout").innerHTML = `Tip ${fmtMoney(bill*tip)} · total <b>${fmtMoney(total)}</b>`+
+      (isFinite(each) ? `<br>Each of ${fmt(ppl,3)}: <b>${fmtMoney(each)}</b>` : "");
+  });
+}
+
+/* =========================================================================
+   Clothing & shoe sizes
+   ========================================================================= */
+const SIZE_TABLES = {
+  shoesM: { name:"Men's shoes", cols:["UK","EU","US","Foot cm"], rows:[
+    ["6","39","7","24.5"],["6.5","40","7.5","25"],["7","41","8","25.5"],["7.5","41.5","8.5","26"],
+    ["8","42","9","26.5"],["8.5","43","9.5","27"],["9","43.5","10","27.5"],["9.5","44","10.5","28"],
+    ["10","44.5","11","28.5"],["10.5","45","11.5","29"],["11","46","12","29.5"],["12","47","13","30.5"]
+  ]},
+  shoesW: { name:"Women's shoes", cols:["UK","EU","US","Foot cm"], rows:[
+    ["3","35.5","5","22"],["3.5","36","5.5","22.5"],["4","37","6","23"],["4.5","37.5","6.5","23.5"],
+    ["5","38","7","24"],["5.5","38.5","7.5","24.5"],["6","39","8","25"],["6.5","40","8.5","25.5"],
+    ["7","41","9","26"],["7.5","41.5","9.5","26.5"],["8","42","10","27"],["9","43","11","28"]
+  ]},
+  clothesW: { name:"Women's clothing", cols:["UK","EU","US","Bust cm"], rows:[
+    ["6","34","2","78"],["8","36","4","82"],["10","38","6","87"],["12","40","8","92"],
+    ["14","42","10","97"],["16","44","12","102"],["18","46","14","107"],["20","48","16","112"]
+  ]},
+  clothesM: { name:"Men's shirts", cols:["Collar in","Collar cm","EU","Size"], rows:[
+    ["14","36","36","XS"],["14.5","37","37","S"],["15","38","38","S"],["15.5","39","39","M"],
+    ["16","41","41","M"],["16.5","42","42","L"],["17","43","43","L"],["17.5","44","44","XL"],["18","46","46","XXL"]
+  ]},
+  jeans: { name:"Men's waist", cols:["Inches","cm","EU"], rows:[
+    ["28","71","44"],["30","76","46"],["32","81","48"],["34","86","50"],
+    ["36","91","52"],["38","97","54"],["40","102","56"],["42","107","58"]
+  ]}
+};
+
+function renderSizes(){
+  view.innerHTML = Object.values(SIZE_TABLES).map(t=>`
+    <div class="card tablecard"><h3>${t.name}</h3>
+      <table>
+        <thead><tr>${t.cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead>
+        <tbody>${t.rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>
+    </div>`).join("") +
+    `<p class="note">Sizes vary a lot between makers — treat these as a starting point, not gospel. EU shoe sizes in particular differ by brand.</p>`;
+}
+
+/* =========================================================================
+   Boot
+   ========================================================================= */
+route();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
