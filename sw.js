@@ -3,7 +3,7 @@
    Currency rates are always fetched from the network (and cached in
    localStorage by the page itself, not here). */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = "converter-shell-" + VERSION;
 
 const SHELL_FILES = [

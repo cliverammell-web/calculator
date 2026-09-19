@@ -297,6 +297,59 @@ const CATS = {
     name:"Clothing sizes", icon:"👟", desc:"UK · EU · US", group:"Everyday",
     custom:"sizes"
   },
+
+  astrodist: {
+    name:"Distance", icon:"🪐", desc:"AU · ly · pc", group:"Astronomical",
+    units:[
+      {id:"km",   name:"Kilometres", sym:"km", f:1000},
+      {id:"mi",   name:"Miles", sym:"mi", f:1609.344},
+      {id:"er",   name:"Earth radii", sym:"R🜨", f:6.3781e6},
+      {id:"ld",   name:"Lunar distances", sym:"LD", f:3.84399e8},
+      {id:"sr",   name:"Solar radii", sym:"R☉", f:6.957e8},
+      {id:"ls",   name:"Light-seconds", sym:"lt-sec", f:299792458},
+      {id:"lmin", name:"Light-minutes", sym:"lt-min", f:17987547480},
+      {id:"au",   name:"Astronomical units", sym:"au", f:149597870700},
+      {id:"lh",   name:"Light-hours", sym:"lt-hr", f:1079252848800},
+      {id:"ld_",  name:"Light-days", sym:"lt-day", f:25902068371200},
+      {id:"ly",   name:"Light-years", sym:"ly", f:9460730472580800},
+      {id:"pc",   name:"Parsecs", sym:"pc", f:3.0856775814913673e16},
+      {id:"kpc",  name:"Kiloparsecs", sym:"kpc", f:3.0856775814913673e19},
+      {id:"mpc",  name:"Megaparsecs", sym:"Mpc", f:3.0856775814913673e22},
+      {id:"m",    name:"Metres", sym:"m", f:1}
+    ], def:"au", extra:"astroref"
+  },
+  angle: {
+    name:"Angle", icon:"📐", desc:"° · arcmin · arcsec", group:"Astronomical",
+    units:[
+      {id:"deg",  name:"Degrees", sym:"°", f:1},
+      {id:"arcmin",name:"Arcminutes", sym:"′", f:1/60},
+      {id:"arcsec",name:"Arcseconds", sym:"″", f:1/3600},
+      {id:"mas",  name:"Milliarcseconds", sym:"mas", f:1/3600000},
+      {id:"rad",  name:"Radians", sym:"rad", f:180/Math.PI},
+      {id:"mrad", name:"Milliradians", sym:"mrad", f:0.18/Math.PI},
+      {id:"turn", name:"Full turns", sym:"turn", f:360},
+      {id:"grad", name:"Gradians", sym:"gon", f:0.9},
+      {id:"hra",  name:"Hours of RA", sym:"h", f:15},
+      {id:"mra",  name:"Minutes of RA", sym:"m", f:0.25},
+      {id:"sra",  name:"Seconds of RA", sym:"s", f:1/240}
+    ], def:"deg", extra:"dms"
+  },
+  astromass: {
+    name:"Mass", icon:"☀️", desc:"Earth · Jupiter · solar", group:"Astronomical",
+    units:[
+      {id:"kg",  name:"Kilograms", sym:"kg", f:1},
+      {id:"t",   name:"Tonnes", sym:"t", f:1000},
+      {id:"mm",  name:"Lunar masses", sym:"M☾", f:7.346e22},
+      {id:"me",  name:"Earth masses", sym:"M🜨", f:5.97217e24},
+      {id:"mj",  name:"Jupiter masses", sym:"M♃", f:1.89813e27},
+      {id:"ms",  name:"Solar masses", sym:"M☉", f:1.98841e30}
+    ], def:"ms"
+  },
+  astrotools: {
+    name:"Sky tools", icon:"🔭", desc:"parallax · size · magnitude", group:"Astronomical",
+    custom:"astrotools"
+  },
+
   currency: {
     name:"Currency", icon:"💱", desc:"live ECB rates", group:"Money",
     custom:"currency"
@@ -308,11 +361,22 @@ const CATS = {
 };
 
 /* ---------- number formatting ---------- */
+const SUPER = {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹","-":"⁻"};
+function sci(n){
+  // 3.0857e+16  ->  3.0857 × 10¹⁶
+  const [mant, exp] = n.toExponential(4).split("e");
+  const e = String(Number(exp)).split("").map(ch => SUPER[ch] || ch).join("");
+  return `${Number(mant)} × 10${e}`;
+}
+function plain(n){
+  // a machine-readable string safe to put back into the input box
+  return String(Number(Number(n).toPrecision(12)));
+}
 function fmt(n, sig){
   if(n===null || n===undefined || !isFinite(n)) return "–";
   if(n===0) return "0";
   const a = Math.abs(n);
-  if(a >= 1e13 || a < 1e-6) return n.toExponential(4).replace("e","e");
+  if(a >= 1e13 || a < 1e-6) return sci(n);
   sig = sig || 8;
   let s = Number(n.toPrecision(sig));
   // limit decimals sensibly
@@ -395,6 +459,7 @@ function renderCategory(key){
   if(cat.custom === "currency") return renderCurrency();
   if(cat.custom === "finance")  return renderFinance();
   if(cat.custom === "sizes")    return renderSizes();
+  if(cat.custom === "astrotools") return renderAstroTools();
   renderConverter(key, cat);
 }
 
@@ -416,8 +481,8 @@ function renderConverter(key, cat){
       </div>
       <div class="rows" id="rows"></div>
     </div>
-    ${cat.extra === "oven" ? ovenTable() : ""}
-    <p class="note">Tap any row to switch the calculation to that unit.</p>
+    ${EXTRAS[cat.extra] ? EXTRAS[cat.extra]() : ""}
+    <p class="note" id="foot">Tap any row to switch the calculation to that unit.</p>
   `;
   const amt = document.getElementById("amt");
   const unitSel = document.getElementById("unit");
@@ -436,11 +501,13 @@ function renderConverter(key, cat){
         <span class="un"><b>${x.sym}</b>${x.name}</span>
       </button>`;
     }).join("");
+    const live = document.getElementById("live");
+    if(live) live.innerHTML = LIVE[cat.extra] ? LIVE[cat.extra](base) : "";
     rows.querySelectorAll(".row").forEach(r=>{
       r.addEventListener("click", ()=>{
         if(r.dataset.v === "") return;
         unitSel.value = r.dataset.u;
-        amt.value = fmt(Number(r.dataset.v)).replace(/,/g,"");
+        amt.value = plain(r.dataset.v);
         update();
       });
     });
@@ -450,6 +517,59 @@ function renderConverter(key, cat){
   update();
   amt.focus({preventScroll:true});
   amt.select();
+}
+
+/* ---------- extra panels shown under certain converters ---------- */
+const EXTRAS = {
+  oven: () => ovenTable(),
+  dms:  () => `<div class="card tablecard"><h3>Sexagesimal</h3><p class="out" id="live"></p></div>`,
+  astroref: () => astroRefTable()
+};
+
+/* live panels, fed the value in the category's base unit */
+const LIVE = {
+  dms: deg => {
+    if(!isFinite(deg)) return "Enter an angle.";
+    const sign = deg < 0 ? "−" : "";
+    let a = Math.abs(deg);
+    let d = Math.floor(a);
+    let mFull = (a - d) * 60;
+    let mi = Math.floor(mFull);
+    let s = (mFull - mi) * 60;
+    if(s > 59.9995){ s = 0; mi += 1; }
+    if(mi === 60){ mi = 0; d += 1; }
+    // same angle expressed as right ascension
+    let h = a / 15;
+    let hh = Math.floor(h);
+    let rmFull = (h - hh) * 60;
+    let rm = Math.floor(rmFull);
+    let rs = (rmFull - rm) * 60;
+    if(rs > 59.9995){ rs = 0; rm += 1; }
+    if(rm === 60){ rm = 0; hh += 1; }
+    return `<b>${sign}${d}° ${String(mi).padStart(2,"0")}′ ${s.toFixed(3).padStart(6,"0")}″</b>` +
+           `<br>As right ascension: ${sign}${hh}ʰ ${String(rm).padStart(2,"0")}ᵐ ${rs.toFixed(3).padStart(6,"0")}ˢ`;
+  }
+};
+
+function astroRefTable(){
+  const rows = [
+    ["Light-second", "299,792.458 km", "how far light goes in 1 s"],
+    ["Earth ⌀ (equatorial)", "12,756 km", "2 × 6,378 km"],
+    ["Earth → Moon", "384,399 km", "1.28 light-seconds, on average"],
+    ["Sun ⌀", "1,392,000 km", "109 Earths across"],
+    ["Earth → Sun", "1 au = 149,597,871 km", "8.32 light-minutes"],
+    ["Neptune's orbit", "30.1 au", "4.2 light-hours"],
+    ["1 light-year", "63,241 au", "9.461 × 10¹² km"],
+    ["1 parsec", "3.2616 ly", "1 au subtending 1 arcsecond"],
+    ["Proxima Centauri", "4.2465 ly = 1.3020 pc", "the nearest star"],
+    ["Galactic centre", "≈ 8.2 kpc = 26,700 ly", "Sagittarius A*"],
+    ["Milky Way ⌀", "≈ 30 kpc = 100,000 ly", ""],
+    ["Andromeda (M31)", "≈ 0.78 Mpc = 2.5 Mly", "nearest large galaxy"]
+  ];
+  return `<div class="card tablecard"><h3>Handy distances</h3>
+    <table><thead><tr><th>What</th><th>Distance</th><th>Also</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td style="color:var(--muted)">${r[2]}</td></tr>`).join("")}</tbody>
+    </table></div>`;
 }
 
 function ovenTable(){
@@ -671,6 +791,115 @@ function renderFinance(){
     $("tout").innerHTML = `Tip ${fmtMoney(bill*tip)} · total <b>${fmtMoney(total)}</b>`+
       (isFinite(each) ? `<br>Each of ${fmt(ppl,3)}: <b>${fmtMoney(each)}</b>` : "");
   });
+}
+
+/* =========================================================================
+   Sky tools
+   ========================================================================= */
+const PC_IN_LY = 3.2615637769;
+const AU_M = 149597870700;
+const PC_M = 3.0856775814913673e16;
+
+function renderAstroTools(){
+  view.innerHTML = `
+  <div class="card tool">
+    <h3>Parallax ↔ distance</h3>
+    <div class="fields">
+      <div><label for="a1">Value</label><input id="a1" type="text" inputmode="decimal" value="0.7687"></div>
+      <div><label for="a2">Is</label>
+        <select id="a2">
+          <option value="par">parallax ″</option>
+          <option value="mas">parallax mas</option>
+          <option value="pc">distance pc</option>
+          <option value="ly">distance ly</option>
+        </select>
+      </div>
+    </div>
+    <p class="out" id="aout"></p>
+  </div>
+
+  <div class="card tool">
+    <h3>Angular size</h3>
+    <div class="fields">
+      <div><label for="s1">Angle</label><input id="s1" type="text" inputmode="decimal" value="31.5"></div>
+      <div><label for="s2">In</label>
+        <select id="s2">
+          <option value="${Math.PI/10800}">arcminutes</option>
+          <option value="${Math.PI/648000}">arcseconds</option>
+          <option value="${Math.PI/180}">degrees</option>
+        </select>
+      </div>
+      <div><label for="s3">Distance</label><input id="s3" type="text" inputmode="decimal" value="1"></div>
+      <div><label for="s4">In</label>
+        <select id="s4">
+          <option value="${AU_M}">au</option>
+          <option value="1000">km</option>
+          <option value="9460730472580800">light-years</option>
+          <option value="${PC_M}">parsecs</option>
+        </select>
+      </div>
+    </div>
+    <p class="out" id="sout"></p>
+  </div>
+
+  <div class="card tool">
+    <h3>Magnitudes</h3>
+    <div class="fields">
+      <div><label for="m1">Magnitude 1</label><input id="m1" type="text" inputmode="decimal" value="-1.46"></div>
+      <div><label for="m2">Magnitude 2</label><input id="m2" type="text" inputmode="decimal" value="6.0"></div>
+      <div class="full"><label for="m3">Distance for absolute magnitude (parsecs, optional)</label><input id="m3" type="text" inputmode="decimal" value=""></div>
+    </div>
+    <p class="out" id="mout"></p>
+  </div>
+
+  <p class="note">Parallax and distance are exact reciprocals by definition: 1 arcsecond of parallax is 1 parsec. Angular size uses the small-angle approximation, which is fine for anything below a few degrees.</p>
+  `;
+
+  const $ = id => document.getElementById(id);
+
+  const aupd = ()=>{
+    const v = parseNum($("a1").value), kind = $("a2").value;
+    if(!isFinite(v) || v <= 0){ $("aout").textContent = "Enter a positive number."; return; }
+    let pc;
+    if(kind === "par") pc = 1 / v;
+    else if(kind === "mas") pc = 1000 / v;
+    else if(kind === "pc") pc = v;
+    else pc = v / PC_IN_LY;
+    const ly = pc * PC_IN_LY;
+    const arcsec = 1 / pc;
+    $("aout").innerHTML =
+      `<b>${fmt(pc,6)} pc</b> = ${fmt(ly,6)} light-years<br>` +
+      `Parallax ${fmt(arcsec,6)}″ (${fmt(arcsec*1000,6)} mas) · ${fmt(pc*PC_M/AU_M,6)} au`;
+  };
+  ["a1"].forEach(i=>$(i).addEventListener("input", aupd));
+  $("a2").addEventListener("change", aupd); aupd();
+
+  const supd = ()=>{
+    const ang = parseNum($("s1").value);
+    const radPerUnit = Number($("s2").value);
+    const dist = parseNum($("s3").value);
+    const distM = dist * Number($("s4").value);
+    if(!isFinite(ang) || !isFinite(dist)){ $("sout").textContent = "Enter an angle and a distance."; return; }
+    const rad = ang * radPerUnit;
+    const size = 2 * distM * Math.tan(rad / 2);
+    $("sout").innerHTML =
+      `Across: <b>${fmt(size/1000,6)} km</b><br>` +
+      `${fmt(size/AU_M,6)} au · ${fmt(size/6.957e8,6)} solar radii · ${fmt(size/6.3781e6,6)} Earth radii`;
+  };
+  ["s1","s3"].forEach(i=>$(i).addEventListener("input", supd));
+  ["s2","s4"].forEach(i=>$(i).addEventListener("change", supd)); supd();
+
+  const mupd = ()=>{
+    const a = parseNum($("m1").value), b = parseNum($("m2").value), d = parseNum($("m3").value);
+    if(!isFinite(a) || !isFinite(b)){ $("mout").textContent = "Enter two magnitudes."; return; }
+    const ratio = Math.pow(10, (b - a) / 2.5);
+    let out = `Magnitude ${fmt(a,5)} is <b>${fmt(ratio,5)}×</b> brighter than ${fmt(b,5)}.`;
+    if(isFinite(d) && d > 0){
+      out += `<br>At ${fmt(d,6)} pc, apparent ${fmt(a,5)} → absolute <b>${fmt(a - 5*Math.log10(d) + 5, 4)}</b>.`;
+    }
+    $("mout").innerHTML = out;
+  };
+  ["m1","m2","m3"].forEach(i=>$(i).addEventListener("input", mupd)); mupd();
 }
 
 /* =========================================================================
